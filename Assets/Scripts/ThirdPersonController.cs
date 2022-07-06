@@ -23,13 +23,13 @@ public class ThirdPersonController : MonoBehaviour
     [SerializeField]
     private Camera playerCamera;
     
-
+    //Grab Rigid Body
     private void Awake()
     {
         rb = this.GetComponent<Rigidbody>();
         playerActionSet = new ThirdPersonActionsAsset();
     }
-
+    // jump enable
     private void OnEnable()
     {
         playerActionSet.Player.Jump.started += DoJump;
@@ -38,13 +38,13 @@ public class ThirdPersonController : MonoBehaviour
     }
 
  
-
+    //jump disable
     private void OnDisable()
     {
         playerActionSet.Player.Jump.started -= DoJump;
         playerActionSet.Player.Disable();
     }
-
+    // Updates
     private void FixedUpdate()
     {
         forceDirection += move.ReadValue<Vector2>().x * GetCameraRight(playerCamera) * movementForce;
@@ -63,7 +63,7 @@ public class ThirdPersonController : MonoBehaviour
 
         LookAt();
     }
-
+    //Camera Look
     private void LookAt()
     {
         Vector3 direction = rb.velocity;
@@ -88,14 +88,14 @@ public class ThirdPersonController : MonoBehaviour
         right.y = 0;
         return right.normalized;
     }
-
+    // Jump method after Grounded confirmed
     private void DoJump(InputAction.CallbackContext obj)
     {
         if(isGrounded())
         { forceDirection += Vector3.up * jumpForce;
         }
     }
-
+    //Grounded Check
     private bool isGrounded()
     {
         Ray ray = new Ray(this.transform.position + Vector3.up * 0.25f, Vector3.down);
