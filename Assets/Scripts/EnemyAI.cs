@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -8,37 +9,209 @@ public class EnemyAI : MonoBehaviour
     NavMeshAgent agent;
     public Transform[] waypoints;
     int waypointIndex;
-    Vector3 target;
+    public float startWaitTime = 4;
+    public float timeToRotate = 2;
+    public float speedWalk = 6;
+    public float speedRun = 9;
+
+    public float viewRadius = 15;
+    public float viewAngle = 90;
+    public LayerMask playerMask;
+    public LayerMask obstacleMask;
+    public float meshResolution = 1f;
+    public int edgeIterations = 4;
+    public float edgeDistance = 0.5f;
+
+    Vector3 playerLastPosition = Vector3.zero;
+    Vector3 m_playerPosition;
+
+    float m_WaitTime;
+    float m_TimeToRotate;
+    bool m_PlayerInRange;
+    bool m_PlayerNear;
+    bool m_IsPatrol;
+    bool m_CaughtPlayer;
+
     // Start is called before the first frame update
     void Start()
     {
+        m_playerPosition = Vector3.zero;
+        m_IsPatrol = true;
+        m_CaughtPlayer = false;
+        m_PlayerInRange = false;
+        m_WaitTime = startWaitTime;
+        m_TimeToRotate = timeToRotate;
+
+        waypointIndex = 0;
         agent = GetComponent<NavMeshAgent>();
-        UpdateDestination();
+
+        agent.isStopped = false;
+        agent.speed = speedWalk;
+        agent.SetDestination(waypoints[waypointIndex].position);
     }
 
     // Update is called once per frame
     void Update()
     {
-        if(Vector3.Distance(transform.position, target) < 1)
+        EnvironmentView();
+        if(!m_IsPatrol)
         {
-            IterateWaypointIndex();
-            UpdateDestination();
+            Chasing();
+        }
+        else
+        {
+            Patroling();
+        }
+ 
+    }
+
+    private void Chasing()
+    {
+        m_PlayerNear = false;
+        playerLastPosition = Vector3.zero;
+
+        if (!m_CaughtPlayer)
+        {
+            Move(speedRun);
+            agent.SetDestination(m_playerPosition);
+        }
+        if(agent.remainingDistance <= agent.stoppingDistance)
+        {
+            if(m_WaitTime <= 0 && !m_CaughtPlayer && Vector3.Distance(transform.position, GameObject.FindGameObjectWithTag("Player").transform.position) >= 6f)
+            {
+                m_IsPatrol = true;
+                m_PlayerNear = false;
+                Move(speedWalk);
+                m_TimeToRotate = timeToRotate;
+                m_WaitTime = startWaitTime;
+                agent.SetDestination(waypoints[waypointIndex].position);
+            }
+            else
+            {
+                if(Vector3.Distance(transform.position, GameObject.FindGameObjectWithTag("Player").transform.position) >= 2.5f)
+                {
+                    Stop();
+                    m_WaitTime -= Time.deltaTime;
+                }
+            }
         }
     }
 
-    void UpdateDestination()
+    private void Patroling()
     {
-        target = waypoints[waypointIndex].position;
-        agent.SetDestination(target);
+        if (m_PlayerNear)
+        {
+            if(m_TimeToRotate <= 0)
+            {
+                Move(speedWalk);
+                LookingPlayer(playerLastPosition);
+            }
+            else
+            {
+                Stop();
+                m_TimeToRotate -= Time.deltaTime;
 
+            }
+        }
+        else
+        {
+            m_PlayerNear = false;
+            playerLastPosition = Vector3.zero;
+            agent.SetDestination(waypoints[waypointIndex].position);
+            if (agent.remainingDistance <= agent.stoppingDistance)
+            {
+                if(m_WaitTime <= 0)
+                {
+                    NextPoint();
+                    Move(speedWalk);
+                    m_WaitTime = startWaitTime;
+                }
+                else
+                {
+                    Stop();
+                    m_WaitTime -= Time.deltaTime;
+                }
+            }
+        }
     }
 
-    void IterateWaypointIndex()
+    void Move(float speed)
     {
-        waypointIndex++;
-        if(waypointIndex== waypoints.Length)
+        agent.isStopped = false;
+        agent.speed = speed;
+    }
+
+    void Stop()
+    {
+        agent.isStopped = true;
+        agent.speed = 0;
+    }
+
+    public void NextPoint()
+    {
+        waypointIndex = (waypointIndex + 1) % waypoints.Length;
+        agent.SetDestination(waypoints[waypointIndex].position);
+    }
+
+    void CaughtPlayer()
+    {
+        m_CaughtPlayer = true;
+    }
+
+    void LookingPlayer(Vector3 player)
+    {
+        agent.SetDestination(player);
+        if(Vector3.Distance(transform.position, player)<= 0.3)
         {
-            waypointIndex = 0;
+            if(m_WaitTime <= 0)
+            {
+                m_PlayerNear = false;
+                Move(speedWalk);
+                agent.SetDestination(waypoints[waypointIndex].position);
+                m_WaitTime = startWaitTime;
+                m_TimeToRotate = timeToRotate;
+                
+                
+            }
+            else
+            {
+                Stop();
+                m_WaitTime -= Time.deltaTime;
+            }
+        }
+    }
+
+    void EnvironmentView()
+    {
+        Collider[] playerInRange = Physics.OverlapSphere(transform.position, viewRadius, playerMask);
+
+        for (int i = 0; i < playerInRange.Length; i++)
+        {
+            Transform player = playerInRange[i].transform;
+            Vector3 dirToPlayer = (player.position - transform.position).normalized;
+            if (Vector3.Angle(transform.forward, dirToPlayer) < viewAngle / 2)
+            {
+                float dstToPlayer = Vector3.Distance(transform.position, player.position);
+                if (!Physics.Raycast(transform.position, dirToPlayer, dstToPlayer, obstacleMask))
+                {
+                    m_PlayerInRange = true;
+                    m_IsPatrol = false;
+                }
+                else
+                {
+                    m_PlayerInRange = false;
+                }
+            }
+
+            if (Vector3.Distance(transform.position, player.position) > viewRadius)
+            {
+                m_PlayerInRange = false;
+            }
+
+            if (m_PlayerInRange)
+            {
+                m_playerPosition = player.transform.position;
+            }
         }
     }
 }
