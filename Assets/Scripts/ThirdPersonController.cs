@@ -62,6 +62,8 @@ public class ThirdPersonController : MonoBehaviour
             rb.velocity = horizontalVelocity.normalized * maxSpeed + Vector3.up * rb.velocity.y;
 
         LookAt();
+
+        
     }
     //Camera Look
     private void LookAt()

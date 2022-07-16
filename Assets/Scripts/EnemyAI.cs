@@ -11,8 +11,8 @@ public class EnemyAI : MonoBehaviour
     int waypointIndex;
     public float startWaitTime = 4;
     public float timeToRotate = 2;
-    public float speedWalk = 6;
-    public float speedRun = 9;
+    public float speedWalk = 2f;
+    public float speedRun = 2.75f;
 
     public float viewRadius = 15;
     public float viewAngle = 90;
